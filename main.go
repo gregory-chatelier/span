@@ -55,7 +55,7 @@ func main() {
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: %s [operation] [args...]
 
-span is a Unix-style tool for interval manipulation.
+**span** is a command line tool for interval manipulation.
 
 Global Flags:
   -f, --format string
@@ -99,10 +99,10 @@ Operational Flags (only one can be used at a time):
 	fs.BoolVar(subintervalsFlag, "subintervals", false, "")
 
 	err := fs.Parse(os.Args[1:])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-			os.Exit(1)
-		}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
 
 	if *versionFlag {
 		fmt.Println(Version)
