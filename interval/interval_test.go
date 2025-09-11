@@ -90,13 +90,30 @@ func TestDeval(t *testing.T) {
 		wantErr bool
 	}{
 		{"midpoint", 50, 0, 100, 0.5, false},
-		{"start", 0, 0, 100, 0, false},
-		{"end", 100, 0, 100, 1, false},
+		{"start of interval", 0, 0, 100, 0, false},
+		{"end of interval", 100, 0, 100, 1, false},
 		{"outside below", -50, 0, 100, -0.5, false},
 		{"outside above", 150, 0, 100, 1.5, false},
-		{"inverted interval", 50, 100, 0, 0.5, false},
-		{"zero delta, error", 50, 10, 10, 0, true},
-		{"zero delta, no error", 10, 10, 10, 0, false},
+
+		// Inverted intervals (b < a)
+		{"inverted: midpoint", 50, 100, 0, 0.5, false},
+		{"inverted: start of interval (val=a)", 100, 100, 0, 0, false},
+		{"inverted: end of interval (val=b)", 0, 100, 0, 1, false},
+		{"inverted: outside below", 150, 100, 0, -0.5, false},
+		{"inverted: outside above", -50, 100, 0, 1.5, false},
+
+		// Zero delta cases (already covered, but good to keep)
+		{"zero delta, val == a", 10, 10, 10, 0, false},
+		{"zero delta, val != a (error)", 10.000000000000001, 10, 10, 0, true}, // This was the failing test case
+
+		// NaN and Inf cases (already covered, but good to keep)
+		{"val is NaN", math.NaN(), 0, 100, 0, true},
+		{"a is NaN", 50, math.NaN(), 100, 0, true},
+		{"b is NaN", 50, 0, math.NaN(), 0, true},
+		{"val is Inf+", math.Inf(1), 0, 100, 0, true},
+		{"val is Inf-", math.Inf(-1), 0, 100, 0, true},
+		{"a is Inf+", 50, math.Inf(1), 100, 0, true},
+		{"b is Inf-", 50, 0, math.Inf(-1), 0, true},
 	}
 
 	for _, tt := range tests {
