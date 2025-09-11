@@ -29,11 +29,11 @@ func slicesAlmostEqual(a, b []float64) bool {
 
 func TestLimit(t *testing.T) {
 	tests := []struct {
-		name    string
-		val     float64
-		min     float64
-		max     float64
-		want    float64
+		name string
+		val  float64
+		min  float64
+		max  float64
+		want float64
 	}{
 		{"val inside", 5, 0, 10, 5},
 		{"val below", -5, 0, 10, 0},

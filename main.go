@@ -19,7 +19,7 @@ var Version = "v0.0.1-dev"
 // It's used to pass different interval operations to the stream processor.
 type processFunc func(float64) (float64, error)
 
-// processStream reads numbers from stdin, applies a processing function to each, 
+// processStream reads numbers from stdin, applies a processing function to each,
 // and prints the result to stdout.
 func processStream(format string, proc processFunc) {
 	outputFormat := format + "\n"
@@ -98,7 +98,11 @@ Operational Flags (only one can be used at a time):
 	subintervalsFlag := fs.Bool("s", false, "")
 	fs.BoolVar(subintervalsFlag, "subintervals", false, "")
 
-	fs.Parse(os.Args[1:])
+	err := fs.Parse(os.Args[1:])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+			os.Exit(1)
+		}
 
 	if *versionFlag {
 		fmt.Println(Version)
@@ -106,15 +110,33 @@ Operational Flags (only one can be used at a time):
 	}
 
 	opCount := 0
-	if *remapFlag { opCount++ }
-	if *limitFlag { opCount++ }
-	if *encompassFlag { opCount++ }
-	if *divideFlag { opCount++ }
-	if *evalFlag { opCount++ }
-	if *devalFlag { opCount++ }
-	if *randomFlag { opCount++ }
-	if *snapFlag { opCount++ }
-	if *subintervalsFlag { opCount++ }
+	if *remapFlag {
+		opCount++
+	}
+	if *limitFlag {
+		opCount++
+	}
+	if *encompassFlag {
+		opCount++
+	}
+	if *divideFlag {
+		opCount++
+	}
+	if *evalFlag {
+		opCount++
+	}
+	if *devalFlag {
+		opCount++
+	}
+	if *randomFlag {
+		opCount++
+	}
+	if *snapFlag {
+		opCount++
+	}
+	if *subintervalsFlag {
+		opCount++
+	}
 
 	if opCount > 1 {
 		fmt.Fprintln(os.Stderr, "Error: Only one operational flag can be used at a time.")
