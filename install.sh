@@ -82,7 +82,7 @@ fi
 
 # Download the binary to a temporary location
 TMP_FILE=$(mktemp)
-decho "Downloading from $DOWNLOAD_URL..."
+echo "Downloading from $DOWNLOAD_URL..."
 curl -sSfL "$DOWNLOAD_URL" -o "$TMP_FILE"
 
 # Install the binary
