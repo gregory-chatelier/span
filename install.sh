@@ -74,7 +74,7 @@ if [ -z "$VERSION" ]; then
 fi
 
 # Detect platform and install directory
-read PLATFORM INSTALL_DIR IS_WINDOWS_ENV <<< $(get_os_arch_install_dir)
+eval $(get_os_arch_install_dir | { read PLATFORM_VAR INSTALL_DIR_VAR IS_WINDOWS_ENV_VAR; echo "PLATFORM=\"$PLATFORM_VAR\" INSTALL_DIR=\"$INSTALL_DIR_VAR\" IS_WINDOWS_ENV=\"$IS_WINDOWS_ENV_VAR\""; })
 
 # Construct the download URL
 FILENAME="$APP_NAME-$PLATFORM"
