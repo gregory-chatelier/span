@@ -13,8 +13,15 @@ REPO="gregory-chatelier/span"
 # The name of the binary.
 APP_NAME="span"
 
-# The directory to install the binary to.
-INSTALL_DIR="/usr/local/bin"
+
+
+    # Detect if running on Windows (Git Bash, MSYS, MINGW)
+    if [ "$(uname -s | cut -c 1-5)" = "MINGW" ] || [ "$(uname -s | cut -c 1-4)" = "MSYS" ]; then
+        INSTALL_DIR="$HOME/bin"
+        echo "Detected Windows environment. Installing to $INSTALL_DIR."
+        echo "Please ensure $INSTALL_DIR is in your system's PATH."
+        echo "You may need to restart your terminal or system for changes to take effect."
+    fi
 
 # --- Helper Functions ---
 
@@ -86,16 +93,14 @@ echo "Downloading from $DOWNLOAD_URL..."
 curl -sSfL "$DOWNLOAD_URL" -o "$TMP_FILE"
 
 # Install the binary
-echo "Installing to $INSTALL_DIR..."
+# Attempt to create the install directory if it doesn't exist
+mkdir -p "$INSTALL_DIR" || echo_err "Failed to create installation directory: $INSTALL_DIR. Check permissions."
 
-# Use sudo if the install directory is not writable by the current user
-if [ -w "$INSTALL_DIR" ]; then
-    mv "$TMP_FILE" "$INSTALL_DIR/$APP_NAME"
+# Move the binary and make it executable
+if mv "$TMP_FILE" "$INSTALL_DIR/$APP_NAME"; then
     chmod +x "$INSTALL_DIR/$APP_NAME"
 else
-    echo "Sudo privileges are required to install to $INSTALLDIR."
-    sudo mv "$TMP_FILE" "$INSTALL_DIR/$APP_NAME"
-    sudo chmod +x "$INSTALL_DIR/$APP_NAME"
+    echo_err "Failed to move $APP_NAME to $INSTALL_DIR. Check permissions or try running with sudo if necessary."
 fi
 
 echo "$APP_NAME version $VERSION has been installed successfully!"
