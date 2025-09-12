@@ -37,9 +37,37 @@ Working with numeric ranges is a common task in scripting, data analysis, and sy
 *   **`--version`**: Prints version information and exits.
 
 
-## Installation
+## ⬇️ Installation
 
-### From Source (Recommended for Go users)
+`span` provides flexible installation options.
+
+### 🚀 Quick Install (Recommended)
+
+This single command will download and install `span` to a sensible default location for your system.
+
+**User-level Installation (No `sudo` needed - Recommended for most users):**
+Installs `span` to `$HOME/.local/bin` (Linux/macOS) or a user-specific `bin` directory (Windows).
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/gregory-chatelier/span/main/install.sh | sh
+```
+
+**System-wide Installation (Requires `sudo`):**
+Installs `span` to `/usr/local/bin` (Linux/macOS).
+
+```bash
+bashsudo curl -sSfL https://raw.githubusercontent.com/gregory-chatelier/span/main/install.sh | sh
+```
+
+### 🛠️ Custom Installation Directory
+
+You can specify a custom installation directory using the `INSTALL_DIR` environment variable:
+
+```bash
+INSTALL_DIR=$HOME/my-tools curl -sSfL https://raw.githubusercontent.com/gregory-chatelier/span/main/install.sh | sh
+```
+
+### 📦 From Source (For Go Developers)
 
 If you have Go installed (Go 1.18+ is required):
 
@@ -47,7 +75,25 @@ If you have Go installed (Go 1.18+ is required):
 go install github.com/gregory-chatelier/span@latest
 ```
 
-This command will download, compile, and install the `span` executable into your `$GOPATH/bin` directory (or `$HOME/go/bin` by default). Ensure this directory is in your system's `PATH`.
+### 📋 Next Steps (Important!)
+
+After installation, ensure the installation directory is in your system's `PATH`.
+
+*   **Linux/macOS (for `$HOME/.local/bin` or custom `INSTALL_DIR`):**
+    Add this to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+    ```bash
+    export PATH="$INSTALL_DIR:$PATH"
+    ```
+    Then, reload your current shell: `source ~/.bashrc` (or `source ~/.zshrc`).
+
+*   **Windows:**
+    You need to manually add the installation directory (e.g., `C:\Users\YourUser\AppData\Local\bin` or `C:\Users\YourUser\bin`) to your system's `PATH` environment variable. You may need to restart your terminal or system for changes to take effect.
+
+Finally, test your installation:
+
+```bash
+span --version
+```
 
 ## License
 
