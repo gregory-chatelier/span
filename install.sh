@@ -104,12 +104,19 @@ curl -sSfL "$DOWNLOAD_URL" -o "$TMP_FILE"
 # Attempt to create the install directory if it doesn't exist
 mkdir -p "$INSTALL_DIR" || echo_err "Failed to create installation directory: $INSTALL_DIR. Check permissions."
 
+# Determine the final binary name (with .exe for Windows)
+if [ "$IS_WINDOWS_ENV" = "true" ]; then
+    TARGET_BINARY_NAME="$APP_NAME.exe"
+else
+    TARGET_BINARY_NAME="$APP_NAME"
+fi
+
 # Move the binary and make it executable
-if mv "$TMP_FILE" "$INSTALL_DIR/$APP_NAME"; then
-    chmod +x "$INSTALL_DIR/$APP_NAME"
+if mv "$TMP_FILE" "$INSTALL_DIR/$TARGET_BINARY_NAME"; then
+    chmod +x "$INSTALL_DIR/$TARGET_BINARY_NAME"
     echo "$APP_NAME version $VERSION has been installed successfully to $INSTALL_DIR!"
     if [ "$IS_WINDOWS_ENV" = "true" ]; then
-        echo "Please ensure $INSTALL_DIR is in your system\'s PATH."
+        echo "Please ensure $INSTALL_DIR is in your system's PATH."
         echo "You may need to restart your terminal or system for changes to take effect."
     fi
 else
