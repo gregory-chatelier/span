@@ -43,11 +43,27 @@ func TestLimit(t *testing.T) {
 		{"inverted interval, val inside", 5, 10, 0, 5},
 		{"inverted interval, val below", -5, 10, 0, 0},
 		{"inverted interval, val above", 15, 10, 0, 10},
+		{"val is NaN", math.NaN(), 0, 10, math.NaN()},
+		{"min is NaN", 5, math.NaN(), 10, math.NaN()},
+		{"max is NaN", 5, 0, math.NaN(), math.NaN()},
+		{"val is Inf+", math.Inf(1), 0, 10, 10},
+		{"val is Inf-", math.Inf(-1), 0, 10, 0},
+		{"zero-width interval, val inside", 10, 10, 10, 10},
+		{"zero-width interval, val below", 5, 10, 10, 10},
+		{"zero-width interval, val above", 15, 10, 10, 10},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Limit(tt.val, tt.min, tt.max); got != tt.want {
+			got := Limit(tt.val, tt.min, tt.max)
+			// Special handling for NaN, since NaN != NaN
+			if math.IsNaN(tt.want) {
+				if !math.IsNaN(got) {
+					t.Errorf("Limit() = %v, want NaN", got)
+				}
+				return
+			}
+			if got != tt.want {
 				t.Errorf("Limit() = %v, want %v", got, tt.want)
 			}
 		})
@@ -69,11 +85,22 @@ func TestEval(t *testing.T) {
 		{"outside above", 1.5, 0, 100, 150},
 		{"inverted interval", 0.5, 100, 0, 50},
 		{"zero delta", 0.5, 10, 10, 10},
+		{"t is NaN", math.NaN(), 0, 100, math.NaN()},
+		{"a is NaN", 0.5, math.NaN(), 100, math.NaN()},
+		{"b is NaN", 0.5, 0, math.NaN(), math.NaN()},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Eval(tt.t, tt.a, tt.b); !almostEqual(got, tt.want) {
+			got := Eval(tt.t, tt.a, tt.b)
+			// Special handling for NaN, since NaN != NaN
+			if math.IsNaN(tt.want) {
+				if !math.IsNaN(got) {
+					t.Errorf("Eval() = %v, want NaN", got)
+				}
+				return
+			}
+			if !almostEqual(got, tt.want) {
 				t.Errorf("Eval() = %v, want %v", got, tt.want)
 			}
 		})
@@ -148,6 +175,12 @@ func TestRemap(t *testing.T) {
 		{"zero delta src, error", 5, 10, 10, 100, 200, 0, true},
 		{"zero delta src, no error", 10, 10, 10, 100, 200, 100, false},
 		{"zero delta dst", 5, 0, 10, 100, 100, 100, false},
+		{"val is NaN", math.NaN(), 0, 10, 0, 100, 0, true},
+		{"srcA is NaN", 5, math.NaN(), 10, 0, 100, 0, true},
+		{"dstA is NaN", 5, 0, 10, math.NaN(), 100, 0, true},
+		{"val is Inf", math.Inf(1), 0, 10, 0, 100, 0, true},
+		{"large intervals", 1e12, 0, 1e15, 0, 100, 0.1, false},
+		{"small intervals", 1e-12, 0, 1e-9, 0, 100, 0.1, false},
 	}
 
 	for _, tt := range tests {
@@ -184,6 +217,10 @@ func TestSnap(t *testing.T) {
 		{"zero steps", 5, 0, 0, 10, 0, true},
 		{"negative steps", 5, -1, 0, 10, 0, true},
 		{"zero delta interval", 5, 10, 10, 10, 10, false},
+		{"val is NaN", math.NaN(), 10, 0, 10, 0, true},
+		{"a is NaN", 5, 10, math.NaN(), 10, 0, true},
+		{"b is NaN", 5, 10, 0, math.NaN(), 0, true},
+		{"val is Inf", math.Inf(1), 10, 0, 10, 0, true},
 	}
 
 	for _, tt := range tests {
@@ -215,6 +252,11 @@ func TestDivide(t *testing.T) {
 		{"inverted interval", 4, 1, 0, []float64{1, 0.75, 0.5, 0.25}, false},
 		{"zero delta", 5, 10, 10, []float64{10, 10, 10, 10, 10}, false},
 		{"negative steps", -1, 0, 10, nil, true},
+		{"a is NaN", 5, math.NaN(), 10, nil, true},
+		{"b is NaN", 5, 0, math.NaN(), nil, true},
+		{"a is Inf", 5, math.Inf(1), 10, nil, true},
+		{"b is Inf", 5, 0, math.Inf(-1), nil, true},
+		{"large step count", 1e6, 0, 1, []float64{}, false}, // We just check for no error
 	}
 
 	for _, tt := range tests {
@@ -224,8 +266,10 @@ func TestDivide(t *testing.T) {
 				t.Errorf("Divide() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && !slicesAlmostEqual(got, tt.want) {
-				t.Errorf("Divide() = %v, want %v", got, tt.want)
+			if !tt.wantErr && tt.steps < 1e6 { // Don't check content for large step counts
+				if !slicesAlmostEqual(got, tt.want) {
+					t.Errorf("Divide() = %v, want %v", got, tt.want)
+				}
 			}
 		})
 	}
@@ -258,6 +302,20 @@ func TestRandom(t *testing.T) {
 					t.Errorf("Random() value %v is outside interval [%v, %v]", val, a, b)
 				}
 			}
+		}
+	})
+
+	t.Run("a is NaN", func(t *testing.T) {
+		_, err := Random(r, 5, math.NaN(), 1)
+		if err == nil {
+			t.Error("Random() expected an error for NaN bound, but got nil")
+		}
+	})
+
+	t.Run("b is Inf", func(t *testing.T) {
+		_, err := Random(r, 5, 0, math.Inf(1))
+		if err == nil {
+			t.Error("Random() expected an error for Inf bound, but got nil")
 		}
 	})
 
@@ -294,6 +352,11 @@ func TestSubintervals(t *testing.T) {
 		{"inverted interval", 2, 1, 0, [][2]float64{{1, 0.5}, {0.5, 0}}, false},
 		{"zero delta", 3, 10, 10, [][2]float64{{10, 10}, {10, 10}, {10, 10}}, false},
 		{"negative steps", -1, 0, 10, nil, true},
+		{"a is NaN", 5, math.NaN(), 10, nil, true},
+		{"b is NaN", 5, 0, math.NaN(), nil, true},
+		{"a is Inf", 5, math.Inf(1), 10, nil, true},
+		{"b is Inf", 5, 0, math.Inf(-1), nil, true},
+		{"large step count", 1e6, 0, 1, [][2]float64{}, false}, // We just check for no error
 	}
 
 	for _, tt := range tests {
@@ -303,7 +366,7 @@ func TestSubintervals(t *testing.T) {
 				t.Errorf("Subintervals() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr {
+			if !tt.wantErr && tt.steps < 1e6 { // Don't check content for large step counts
 				if len(got) != len(tt.want) {
 					t.Fatalf("Subintervals() len = %v, want %v", len(got), len(tt.want))
 				}
