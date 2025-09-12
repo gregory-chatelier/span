@@ -42,22 +42,22 @@ get_os_arch_install_dir() {
 
     # Detect OS
     case "$os_name" in
-        linux) os_name="linux" ;;
-        darwin) os_name="darwin" ;;
+        linux) os_name="linux" ;; 
+        darwin) os_name="darwin" ;; 
         # Handle Git Bash, MSYS, MINGW, and potentially native CMD/PowerShell
         mingw* | msys* | cygwin* | nt) 
             os_name="windows"
             is_windows=true
             install_dir="$HOME/bin" # Default to user's home bin for Windows
             ;;
-        *) echo_err "Unsupported OS: $os_name" ;;
+        *) echo_err "Unsupported OS: $os_name" ;; 
     esac
 
     # Detect Architecture
     case "$arch_name" in
-        x86_64 | amd64) arch_name="amd64" ;;
-        aarch64 | arm64) arch_name="arm64" ;;
-        *) echo_err "Unsupported architecture: $arch_name" ;;
+        x86_64 | amd64) arch_name="amd64" ;; 
+        aarch64 | arm64) arch_name="arm64" ;; 
+        *) echo_err "Unsupported architecture: $arch_name" ;; 
     esac
 
     echo "$os_name-$arch_name $install_dir $is_windows"
@@ -67,14 +67,23 @@ get_os_arch_install_dir() {
 
 echo "Installing $APP_NAME..."
 
+# Detect platform and install directory
+eval $(get_os_arch_install_dir | { read PLATFORM_VAR INSTALL_DIR_VAR IS_WINDOWS_ENV_VAR; echo "PLATFORM=\"$PLATFORM_VAR\" INSTALL_DIR=\"$INSTALL_DIR_VAR\" IS_WINDOWS_ENV=\"$IS_WINDOWS_ENV_VAR\""; })
+
+# Check if running as root and if sudo is needed
+# This needs to be done after INSTALL_DIR is determined
+if [ "$INSTALL_DIR" = "/usr/local/bin" ] && [ "$(id -u)" -ne 0 ]; then
+    echo "Attempting to install to a system directory ($INSTALL_DIR). Re-executing with sudo..."
+    # Re-execute the current script with sudo
+    # This handles the `curl | sh` case where sudo only applies to curl
+    exec sudo sh -c "$(printf %q "$0")" "$@"
+fi
+
 # Get the latest version
 VERSION=$(get_latest_version)
 if [ -z "$VERSION" ]; then
     echo_err "Could not determine the latest version. Check the repository URL."
 fi
-
-# Detect platform and install directory
-eval $(get_os_arch_install_dir | { read PLATFORM_VAR INSTALL_DIR_VAR IS_WINDOWS_ENV_VAR; echo "PLATFORM=\"$PLATFORM_VAR\" INSTALL_DIR=\"$INSTALL_DIR_VAR\" IS_WINDOWS_ENV=\"$IS_WINDOWS_ENV_VAR\""; })
 
 # Construct the download URL
 FILENAME="$APP_NAME-$PLATFORM"
@@ -100,15 +109,9 @@ if mv "$TMP_FILE" "$INSTALL_DIR/$APP_NAME"; then
     chmod +x "$INSTALL_DIR/$APP_NAME"
     echo "$APP_NAME version $VERSION has been installed successfully to $INSTALL_DIR!"
     if [ "$IS_WINDOWS_ENV" = "true" ]; then
-        echo "Please ensure $INSTALL_DIR is in your system's PATH."
+        echo "Please ensure $INSTALL_DIR is in your system\'s PATH."
         echo "You may need to restart your terminal or system for changes to take effect."
     fi
 else
-    # Check if the error is likely due to permissions on a system-wide install dir
-    if [ "$INSTALL_DIR" = "/usr/local/bin" ]; then
-        echo_err "Failed to move $APP_NAME to $INSTALL_DIR. This usually means you don't have write permissions to $INSTALL_DIR."
-        echo_err "Please try running the installation with sudo: sudo curl -sSfL https://raw.githubusercontent.com/$REPO/main/install.sh | sh"
-    else
-        echo_err "Failed to move $APP_NAME to $INSTALL_DIR. Check permissions."
-    fi
+    echo_err "Failed to move $APP_NAME to $INSTALL_DIR. Check permissions."
 fi
