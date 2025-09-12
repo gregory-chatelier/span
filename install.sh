@@ -45,6 +45,7 @@ get_os_arch() {
     case "$os" in
         linux) os="linux" ;;
         darwin) os="darwin" ;;
+        mingw* | msys*) os="windows" ;;
         *) echo_err "Unsupported OS: $os" ;;
     esac
 
