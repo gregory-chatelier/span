@@ -104,9 +104,10 @@ if mv "$TMP_FILE" "$INSTALL_DIR/$APP_NAME"; then
         echo "You may need to restart your terminal or system for changes to take effect."
     fi
 else
-    # Provide specific instructions for permission denied errors
-    if [ "$os_name" = "linux" ] || [ "$os_name" = "darwin" ]; then
-        echo_err "Failed to move $APP_NAME to $INSTALL_DIR. Try running with: sudo curl -sSfL https://raw.githubusercontent.com/$REPO/main/install.sh | sh"
+    # Check if the error is likely due to permissions on a system-wide install dir
+    if [ "$INSTALL_DIR" = "/usr/local/bin" ]; then
+        echo_err "Failed to move $APP_NAME to $INSTALL_DIR. This usually means you don't have write permissions to $INSTALL_DIR."
+        echo_err "Please try running the installation with sudo: sudo curl -sSfL https://raw.githubusercontent.com/$REPO/main/install.sh | sh"
     else
         echo_err "Failed to move $APP_NAME to $INSTALL_DIR. Check permissions."
     fi
