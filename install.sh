@@ -15,13 +15,8 @@ APP_NAME="span"
 
 
 
-    # Detect if running on Windows (Git Bash, MSYS, MINGW)
-    if [ "$(uname -s | cut -c 1-5)" = "MINGW" ] || [ "$(uname -s | cut -c 1-4)" = "MSYS" ]; then
-        INSTALL_DIR="$HOME/bin"
-        echo "Detected Windows environment. Installing to $INSTALL_DIR."
-        echo "Please ensure $INSTALL_DIR is in your system's PATH."
-        echo "You may need to restart your terminal or system for changes to take effect."
-    fi
+    # The directory to install the binary to.
+INSTALL_DIR="/usr/local/bin"
 
 # --- Helper Functions ---
 
@@ -48,6 +43,14 @@ get_latest_version() {
 get_os_arch() {
     os=$(uname -s | tr '[:upper:]' '[:lower:]')
     arch=$(uname -m)
+
+    # Set INSTALL_DIR based on OS
+    if [ "$os" = "windows" ]; then
+        INSTALL_DIR="$HOME/bin"
+        echo "Detected Windows environment. Installing to $INSTALL_DIR."
+        echo "Please ensure $INSTALL_DIR is in your system's PATH."
+        echo "You may need to restart your terminal or system for changes to take effect."
+    fi
 
     case "$os" in
         linux) os="linux" ;;
