@@ -62,8 +62,15 @@ get_latest_version() {
 get_os_arch_install_dir() {
     local os_name=$(uname -s | tr '[:upper:]' '[:lower:]')
     local arch_name=$(uname -m)
-    local install_dir="/usr/local/bin" # Default for Linux/macOS
+    local install_dir # Will be set based on user/root
     local is_windows=false
+
+    # Determine default install_dir based on user privileges
+    if [ "$(id -u)" -eq 0 ]; then
+        install_dir="/usr/local/bin" # Root user default
+    else
+        install_dir="$HOME/.local/bin" # Non-root user default
+    fi
 
     # Detect OS
     case "$os_name" in
@@ -211,13 +218,19 @@ if [ "$IS_WINDOWS_ENV" = "true" ]; then
     echo "   2. You may need to restart your terminal for changes to take effect"
     echo "   3. Test the installation by running: $APP_NAME --version"
     echo ""
-    echo "   To add to PATH in PowerShell (run as Administrator):"
-    echo "   [Environment]::SetEnvironmentVariable('PATH', \$env:PATH + ';$INSTALL_DIR', 'User')"
 else
     echo ""
     echo "📋 Next steps:"
     echo "   Test the installation by running: $APP_NAME --version"
-    if [ "$INSTALL_DIR" != "/usr/local/bin" ]; then
+    if [ "$INSTALL_DIR" = "$HOME/.local/bin" ]; then
+        echo ""
+        echo "   Note: Make sure $INSTALL_DIR is in your PATH"
+        echo "   Add this to your shell profile (.bashrc, .zshrc, etc.):"
+        echo "   export PATH=\"$INSTALL_DIR:\$PATH\""
+        echo ""
+        echo "   Or reload your current shell:"
+        echo "   source ~/.bashrc  # or source ~/.zshrc"
+    elif [ "$INSTALL_DIR" != "/usr/local/bin" ]; then
         echo ""
         echo "   Note: Make sure $INSTALL_DIR is in your PATH"
         echo "   Add this to your shell profile (.bashrc, .zshrc, etc.):"
