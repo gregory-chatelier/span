@@ -13,11 +13,6 @@ REPO="gregory-chatelier/span"
 # The name of the binary.
 APP_NAME="span"
 
-
-
-    # The directory to install the binary to.
-INSTALL_DIR="/usr/local/bin"
-
 # --- Helper Functions ---
 
 echo_err() {
@@ -25,67 +20,68 @@ echo_err() {
     exit 1
 }
 
-# --- Main Logic ---
-
 # 1. Get the latest version from GitHub API
 get_latest_version() {
     # Fetches the latest tag name (e.g., "v0.1.0") from the GitHub API.
     # We use curl to fetch the releases and jq to parse the JSON.
     # If jq is not available, we fall back to a grep/sed method.
-    if command -v jq >/dev/null 2>&1; then
+    if command -v jq >/dev/null 2>&1;
+    then
         curl -s "https://api.github.com/repos/$REPO/releases/latest" | jq -r .tag_name
     else
         curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'
     fi
 }
 
-# 2. Detect OS and Architecture
-get_os_arch() {
-    os=$(uname -s | tr '[:upper:]' '[:lower:]')
-    arch=$(uname -m)
+# 2. Detect OS, Architecture, and determine install directory
+get_os_arch_install_dir() {
+    os_name=$(uname -s | tr '[:upper:]' '[:lower:]')
+    arch_name=$(uname -m)
+    install_dir="/usr/local/bin" # Default for Linux/macOS
+    is_windows=false
 
-    # Set INSTALL_DIR based on OS
-    if [ "$os" = "windows" ]; then
-        INSTALL_DIR="$HOME/bin"
-        echo "Detected Windows environment. Installing to $INSTALL_DIR."
-        echo "Please ensure $INSTALL_DIR is in your system's PATH."
-        echo "You may need to restart your terminal or system for changes to take effect."
-    fi
-
-    case "$os" in
-        linux) os="linux" ;;
-        darwin) os="darwin" ;;
-        mingw* | msys*) os="windows" ;;
-        *) echo_err "Unsupported OS: $os" ;;
+    # Detect OS
+    case "$os_name" in
+        linux) os_name="linux" ;;
+        darwin) os_name="darwin" ;;
+        # Handle Git Bash, MSYS, MINGW, and potentially native CMD/PowerShell
+        mingw* | msys* | cygwin* | nt) 
+            os_name="windows"
+            is_windows=true
+            install_dir="$HOME/bin" # Default to user's home bin for Windows
+            ;;
+        *) echo_err "Unsupported OS: $os_name" ;;
     esac
 
-    case "$arch" in
-        x86_64 | amd64) arch="amd64" ;;
-        aarch64 | arm64) arch="arm64" ;;
-        *) echo_err "Unsupported architecture: $arch" ;;
+    # Detect Architecture
+    case "$arch_name" in
+        x86_64 | amd64) arch_name="amd64" ;;
+        aarch64 | arm64) arch_name="arm64" ;;
+        *) echo_err "Unsupported architecture: $arch_name" ;;
     esac
 
-    echo "$os-$arch"
+    echo "$os_name-$arch_name $install_dir $is_windows"
 }
 
 # --- Execution ---
 
 echo "Installing $APP_NAME..."
 
-# Get the latest version and target platform
+# Get the latest version
 VERSION=$(get_latest_version)
 if [ -z "$VERSION" ]; then
     echo_err "Could not determine the latest version. Check the repository URL."
 fi
 
-PLATFORM=$(get_os_arch)
+# Detect platform and install directory
+read PLATFORM INSTALL_DIR IS_WINDOWS_ENV <<< $(get_os_arch_install_dir)
 
 # Construct the download URL
 FILENAME="$APP_NAME-$PLATFORM"
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$FILENAME"
 
 # For Windows, the binary has a .exe extension
-if [ "$(uname -s | cut -c 1-5)" = "MINGW" ] || [ "$(uname -s | cut -c 1-4)" = "MSYS" ]; then
+if [ "$IS_WINDOWS_ENV" = "true" ]; then
     FILENAME+=".exe"
     DOWNLOAD_URL+=".exe"
 fi
@@ -102,8 +98,16 @@ mkdir -p "$INSTALL_DIR" || echo_err "Failed to create installation directory: $I
 # Move the binary and make it executable
 if mv "$TMP_FILE" "$INSTALL_DIR/$APP_NAME"; then
     chmod +x "$INSTALL_DIR/$APP_NAME"
+    echo "$APP_NAME version $VERSION has been installed successfully to $INSTALL_DIR!"
+    if [ "$IS_WINDOWS_ENV" = "true" ]; then
+        echo "Please ensure $INSTALL_DIR is in your system's PATH."
+        echo "You may need to restart your terminal or system for changes to take effect."
+    fi
 else
-    echo_err "Failed to move $APP_NAME to $INSTALL_DIR. Check permissions or try running with sudo if necessary."
+    # Provide specific instructions for permission denied errors
+    if [ "$os_name" = "linux" ] || [ "$os_name" = "darwin" ]; then
+        echo_err "Failed to move $APP_NAME to $INSTALL_DIR. Try running with: sudo curl -sSfL https://raw.githubusercontent.com/$REPO/main/install.sh | sh"
+    else
+        echo_err "Failed to move $APP_NAME to $INSTALL_DIR. Check permissions."
+    fi
 fi
-
-echo "$APP_NAME version $VERSION has been installed successfully!"
