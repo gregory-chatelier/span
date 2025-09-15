@@ -19,7 +19,7 @@ var Version = "v0.0.1-dev"
 // It's used to pass different interval operations to the stream processor.
 type processFunc func(float64) (float64, error)
 
-// processStream reads numbers from stdin, applies a processing function to each,
+// processStream reads numbers from stdin, applies a processing function to each, 
 // and prints the result to stdout.
 func processStream(format string, proc processFunc) {
 	outputFormat := format + "\n"
@@ -53,27 +53,81 @@ func main() {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: %s [operation] [args...]
+		fmt.Fprintf(os.Stderr, `NAME:
+    span - A Unix-style tool for interval manipulation.
 
-**span** is a command line tool for interval manipulation.
+SYNOPSIS:
+    span [operation] [flags] [arguments...]
+    command | span [operation] [flags] [arguments...]
 
-Global Flags:
-  -f, --format string
-    	Output format for numbers (default "%%g")
-  --version
-    	Print version information and exit
+DESCRIPTION:
+    span reads numbers from stdin, performs an interval-based mathematical
+    operation, and prints the transformed numbers to stdout. It is designed
+    to be a simple, composable tool in the Unix tradition.
 
-Operational Flags (only one can be used at a time):
-  -r, --remap <src_a> <src_b> <dst_a> <dst_b>
-  -l, --limit <min> <max>
-  -E, --encompass
-  -n, --divide <steps> <a> <b>
-  -e, --eval <a> <b>
-  -d, --deval <a> <b>
-  -R, --random <count> <a> <b>
-  -S, --snap <steps> <a> <b>
-  -s, --subintervals <steps> <a> <b>
-`, os.Args[0])
+OPTIONS:
+    Global Flags:
+      -f, --format string
+            Specifies the printf format for floating-point output (e.g., "%.3f").
+            To format as an integer, use "%.0f".
+            Default: "%%g"
+
+      --version
+            Prints version information and exits.
+
+    Operational Flags (only one can be used at a time):
+
+      -r, --remap <src_a> <src_b> <dst_a> <dst_b>
+            Remaps a value from a source interval to a target interval.
+            Example: echo 5 | span -r 0 10 100 200
+            Result: 150
+
+      -l, --limit <min> <max>
+            Restricts (clamps) a value to a given interval.
+            Example: echo 150 | span -l 0 100
+            Result: 100
+
+      -E, --encompass
+            Reads a stream of numbers and outputs the minimum and maximum values.
+            Example: printf "10\n5\n20" | span -E
+            Result: 5 20
+
+      -n, --divide <steps> <a> <b>
+            Generates a sequence of numbers by dividing an interval.
+            Example: span -n 4 0 1
+            Result:
+            0
+            0.25
+            0.5
+            0.75
+
+      -e, --eval <a> <b>
+            Evaluates a parameter 't' (from 0 to 1) within an interval.
+            Example: echo 0.5 | span -e 100 200
+            Result: 150
+
+      -d, --deval <a> <b>
+            De-evaluates a number to a parameter 't' based on its position.
+            Example: echo 150 | span -d 100 200
+            Result: 0.5
+
+      -R, --random <count> <a> <b>
+            Generates <count> random numbers within the interval [a, b].
+            Example: span -R 3 0 10
+            Result: (Three random numbers between 0 and 10)
+
+      -S, --snap <steps> <a> <b>
+            Snaps input values to the nearest point on a grid.
+            Example: echo 4.78 | span -S 10 0 10
+            Result: 5
+
+      -s, --subintervals <steps> <a> <b>
+            Divides an interval into <steps> equal subintervals.
+            Example: span -s 2 0 1
+            Result:
+            0 0.5
+            0.5 1
+`)
 	}
 
 	format := fs.String("f", "%g", "(see usage)")
@@ -98,11 +152,8 @@ Operational Flags (only one can be used at a time):
 	subintervalsFlag := fs.Bool("s", false, "")
 	fs.BoolVar(subintervalsFlag, "subintervals", false, "")
 
-	err := fs.Parse(os.Args[1:])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
-	}
+	// Stop parsing at the first non-flag argument
+	fs.Parse(os.Args[1:])
 
 	if *versionFlag {
 		fmt.Println(Version)
@@ -110,33 +161,15 @@ Operational Flags (only one can be used at a time):
 	}
 
 	opCount := 0
-	if *remapFlag {
-		opCount++
-	}
-	if *limitFlag {
-		opCount++
-	}
-	if *encompassFlag {
-		opCount++
-	}
-	if *divideFlag {
-		opCount++
-	}
-	if *evalFlag {
-		opCount++
-	}
-	if *devalFlag {
-		opCount++
-	}
-	if *randomFlag {
-		opCount++
-	}
-	if *snapFlag {
-		opCount++
-	}
-	if *subintervalsFlag {
-		opCount++
-	}
+	if *remapFlag { opCount++ }
+	if *limitFlag { opCount++ }
+	if *encompassFlag { opCount++ }
+	if *divideFlag { opCount++ }
+	if *evalFlag { opCount++ }
+	if *devalFlag { opCount++ }
+	if *randomFlag { opCount++ }
+	if *snapFlag { opCount++ }
+	if *subintervalsFlag { opCount++ }
 
 	if opCount > 1 {
 		fmt.Fprintln(os.Stderr, "Error: Only one operational flag can be used at a time.")
@@ -209,8 +242,6 @@ Operational Flags (only one can be used at a time):
 			os.Exit(1)
 		}
 
-		// Encompass outputs two values, min and max, separated by a space.
-		// The format flag applies to each number.
 		outputFormat := *format + " " + *format + "\n"
 		fmt.Printf(outputFormat, minVal, maxVal)
 	case *divideFlag:
