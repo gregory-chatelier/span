@@ -119,7 +119,7 @@ func main() {
 			usage()
 			os.Exit(0)
 		}
-		if (stat.Mode()&os.ModeNamedPipe) != 0 {
+		if (stat.Mode() & os.ModeNamedPipe) != 0 {
 			*sparkFlag = true
 		} else {
 			fmt.Fprintln(os.Stderr, "Error: An operational flag is required.")
