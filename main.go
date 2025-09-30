@@ -87,8 +87,8 @@ func main() {
 	sparkFlag := flag.Bool("spark", false, "Generates a sparkline visualization from a stream of numbers.")
 
 	// --- Spark-specific Flags ---
-	sparkWidth := flag.Int("width", 0, "For --spark: fixed-width sliding window animation")
-	sparkColor := flag.String("color", "", "For --spark: sparkline color (red, green, blue, etc.)")
+	sparkWidth := flag.Int("spark-width", 0, "For --spark: fixed-width sliding window animation")
+	sparkColor := flag.String("spark-color", "", "For --spark: sparkline color (red, green, blue, etc.)")
 
 	flag.Parse()
 

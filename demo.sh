@@ -27,7 +27,7 @@ clear
 echo "--- DEMO 2: Using a fixed interval [0-100] and color ---"
 echo "This is useful for data like percentages, where the scale is known."
 echo
-run 'echo "0 10 20 30 40 50 60 70 80 90 100" | ./span --spark 0 100 --color=blue'
+run 'echo "0 10 20 30 40 50 60 70 80 90 100" | ./span --spark 0 100 --spark-color=blue'
 echo
 
 read -p "Press Enter to continue..."
@@ -44,7 +44,7 @@ COMMAND='(
     echo $(($RANDOM % 100))
     sleep 0.05
   done
-) | ./span --spark --width 40 --color green'
+) | ./span --spark --spark-width 40 --spark-color green'
 
 echo "$ $COMMAND"
 (
@@ -53,7 +53,7 @@ echo "$ $COMMAND"
     echo $(($RANDOM % 100))
     sleep 0.05
   done
-) | ./span --spark --width 40 --color green
+) | ./span --spark --spark-width 40 --spark-color green
 
 echo
 
