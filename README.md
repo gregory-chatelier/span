@@ -48,6 +48,16 @@ Working with numeric ranges is a common task in scripting, data analysis, and sy
     *   *Ex.:* `echo 4.78 | span -S 10 0 10` -> `5`
 *   **`-s, --subintervals <steps> <a> <b>`**: Divides an interval into `<steps>` equal subintervals.
     *   *Ex.:* `span -s 2 0 1` -> `0 0.5\n0.5 1`
+*   **`--spark [<min> <max>]`**: Generates a sparkline visualization from a stream of numbers.
+    *   With 0 arguments: Reads the entire input stream, automatically determines min/max, and renders the sparkline. Not suitable for infinite streams.
+        *   *Ex.:* `echo "1 5 22 13 5 17 9" | span --spark` -> ` ▃█▅▃▆▄`
+    *   With 2 arguments (`<min> <max>`): Uses a fixed interval for normalization. Ideal for consistent scaling in real-time or comparative views.
+        *   *Ex.:* `echo "0 25 50 75 100" | span --spark 0 100` -> ` ▃▅▆█`
+    *   **`--spark-width <n>`**: (Optional) Enables a fixed-width, "sliding window" animation of `n` characters. Ideal for real-time monitoring.
+        *   *Ex.:* `(while true; do echo $(($RANDOM % 100)); sleep 0.1; done) | span --spark 0 100 --spark-width=40` (updates in place)
+    *   **`--spark-color <name>`**: (Optional) Applies a color to the sparkline using ANSI escape codes.
+        *   *Predefined colors:* `red`, `green`, `blue`, `yellow`, `cyan`, `magenta`.
+        *   *Ex.:* `echo "1 5 22 13" | span --spark --spark-color=green` -> (shows a green sparkline)
 
 
 
@@ -109,7 +119,7 @@ safe_count=$(echo "$count" | span -l 0 1000)
 # safe_count is now "0"
 ```
 
-### Getting Steps for a Loop (Divide)
+### Getting Steps for a Loop (Framing)
 Create 5 evenly spaced points between -1 and 1.
 ```bash
 span -n -f "%.1f" 5 -1 1
@@ -147,22 +157,24 @@ span -n -f "%.3f" 8 0 6.283185307
 
 Here are some more powerful ways to use `span` by composing it with other tools:
 
-### Terminal Bar Charts
+### Real-time Terminal visualizations
 
-Create simple, dynamic visualizations directly in the terminal by remapping numbers to a fixed width.
+Create dynamic, updating visualizations directly in your terminal for live data streams.
 
 ```bash
-# Set random data
-span -f "%.0f" -R 6 0 10 > data.txt
-
-# Set the desired width for the bar chart
-chart_width=40
-
-# Get the data's range using encompass
-data_range=$(span --encompass < data.txt)
-
-# Remap the data to the chart width and print bars
-span -r $data_range 1 $chart_width < data.txt | awk '{ for (i=0; i<$1; i++) printf "█"; print "" }'
+# Simulate CPU usage monitoring with a 40-character wide, green sparkline.
+# The sparkline updates in place. Press CTRL+C to stop.
+(
+  # Generate fluctuating random numbers between 0 and 100
+  for i in $(seq 1 1000); do
+    echo $(( ($RANDOM % 100) ))
+    sleep 0.1
+  done
+) | span --spark 0 100 --spark-width 40 --spark-color=green
+```
+Output (updates in place):
+```text
+[ ▂▃▄▅▆▇█▇▆▅▄▃▂ ]
 ```
 
 ### Color Space Conversion (Lerp & Inverse Lerp)
