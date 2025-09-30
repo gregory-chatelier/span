@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gregory-chatelier/span/interval"
@@ -49,6 +51,17 @@ func processStream(format string, proc processFunc) {
 	}
 }
 
+// readAllLines reads all lines from stdin and returns them as a slice of strings.
+// This is used for operations that need the full dataset at once.
+func readAllLines(r io.Reader) ([]string, error) {
+	scanner := bufio.NewScanner(r)
+	var lines []string
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
+}
+
 func main() {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
@@ -79,60 +92,43 @@ OPTIONS:
 
       -r, --remap <src_a> <src_b> <dst_a> <dst_b>
             Remaps a value from a source interval to a target interval.
-            Example: echo 5 | span -r 0 10 100 200
-            Result: 150
 
       -l, --limit <min> <max>
             Restricts (clamps) a value to a given interval.
-            Example: echo 150 | span -l 0 100
-            Result: 100
 
       -E, --encompass
             Reads a stream of numbers and outputs the minimum and maximum values.
-            Example: printf "10\n5\n20" | span -E
-            Result: 5 20
 
       -n, --divide <steps> <a> <b>
             Generates a sequence of numbers by dividing an interval.
-            Example: span -n 4 0 1
-            Result:
-            0
-            0.25
-            0.5
-            0.75
 
       -e, --eval <a> <b>
             Evaluates a parameter 't' (from 0 to 1) within an interval.
-            Example: echo 0.5 | span -e 100 200
-            Result: 150
 
       -d, --deval <a> <b>
             De-evaluates a number to a parameter 't' based on its position.
-            Example: echo 150 | span -d 100 200
-            Result: 0.5
 
       -R, --random <count> <a> <b>
             Generates <count> random numbers within the interval [a, b].
-            Example: span -R 3 0 10
-            Result: (Three random numbers between 0 and 10)
 
       -S, --snap <steps> <a> <b>
             Snaps input values to the nearest point on a grid.
-            Example: echo 4.78 | span -S 10 0 10
-            Result: 5
 
       -s, --subintervals <steps> <a> <b>
             Divides an interval into <steps> equal subintervals.
-            Example: span -s 2 0 1
-            Result:
-            0 0.5
-            0.5 1
+      
+      --spark [<min> <max>]
+            Generates a sparkline visualization from a stream of numbers.
+            With 0 args, interval is detected automatically.
+            With 2 args, a fixed interval is used.
+            Options: --width <n>, --color <name>
 `)
 	}
 
 	format := fs.String("f", "%g", "(see usage)")
 	versionFlag := fs.Bool("version", false, "(see usage)")
 
+	// --- Operation Flags ---
 	remapFlag := fs.Bool("r", false, "")
 	fs.BoolVar(remapFlag, "remap", false, "")
 	limitFlag := fs.Bool("l", false, "")
@@ -151,6 +147,11 @@ OPTIONS:
 	fs.BoolVar(snapFlag, "snap", false, "")
 	subintervalsFlag := fs.Bool("s", false, "")
 	fs.BoolVar(subintervalsFlag, "subintervals", false, "")
+	sparkFlag := fs.Bool("spark", false, "")
+
+	// --- Spark-specific Flags ---
+	sparkWidth := fs.Int("width", 0, "for --spark: fixed-width sliding window animation")
+	sparkColor := fs.String("color", "", "for --spark: sparkline color (red, green, blue, etc.)")
 
 	// Stop parsing at the first non-flag argument
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -164,33 +165,17 @@ OPTIONS:
 	}
 
 	opCount := 0
-	if *remapFlag {
-		opCount++
-	}
-	if *limitFlag {
-		opCount++
-	}
-	if *encompassFlag {
-		opCount++
-	}
-	if *divideFlag {
-		opCount++
-	}
-	if *evalFlag {
-		opCount++
-	}
-	if *devalFlag {
-		opCount++
-	}
-	if *randomFlag {
-		opCount++
-	}
-	if *snapFlag {
-		opCount++
-	}
-	if *subintervalsFlag {
-		opCount++
-	}
+	if *remapFlag { opCount++ }
+	if *limitFlag { opCount++ }
+	if *encompassFlag { opCount++ }
+	if *divideFlag { opCount++ }
+	if *evalFlag { opCount++ }
+	if *devalFlag { opCount++ }
+	if *randomFlag { opCount++ }
+	if *snapFlag { opCount++ }
+	if *subintervalsFlag { opCount++ }
+	if *sparkFlag { opCount++ }
+
 
 	if opCount > 1 {
 		fmt.Fprintln(os.Stderr, "Error: Only one operational flag can be used at a time.")
@@ -204,14 +189,69 @@ OPTIONS:
 			fs.Usage()
 			os.Exit(0)
 		}
-		fmt.Fprintln(os.Stderr, "Error: An operational flag is required.")
-		fs.Usage()
-		os.Exit(1)
+		// If not showing usage, default to spark if there's pipe data
+		if (stat.Mode() & os.ModeNamedPipe) != 0 {
+			*sparkFlag = true
+		} else {
+			fmt.Fprintln(os.Stderr, "Error: An operational flag is required.")
+			fs.Usage()
+			os.Exit(1)
+		}
 	}
 
 	args := fs.Args()
 
 	switch {
+	case *sparkFlag:
+		config := interval.SparkConfig{
+			Width: *sparkWidth,
+		}
+
+		var err error
+		config.Color, err = interval.ParseColor(*sparkColor)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+
+		if len(args) == 2 {
+			config.Min, err = strconv.ParseFloat(args[0], 64)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: could not parse min value '%s'\n", args[0])
+				os.Exit(1)
+			}
+			config.Max, err = strconv.ParseFloat(args[1], 64)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: could not parse max value '%s'\n", args[1])
+				os.Exit(1)
+			}
+			config.HasMin = true
+			config.HasMax = true
+		} else if len(args) != 0 {
+			fmt.Fprintln(os.Stderr, "Error: --spark requires 0 or 2 arguments: [<min> <max>]")
+			fs.Usage()
+			os.Exit(1)
+		}
+
+		// In a real streaming implementation for width > 0, we would not read all lines.
+		// This is a simplification for this implementation.
+		lines, err := readAllLines(os.Stdin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
+			os.Exit(1)
+		}
+		scanner := bufio.NewScanner(strings.NewReader(strings.Join(lines, "\n")))
+
+		err = interval.GenerateSparkline(scanner, os.Stdout, config)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating sparkline: %v\n", err)
+			os.Exit(1)
+		}
+		// Print a newline at the end if it's not an animation
+		if config.Width == 0 {
+			fmt.Println()
+		}
+
 	case *remapFlag:
 		if len(args) != 4 {
 			fmt.Fprintln(os.Stderr, "Error: -r, --remap requires 4 arguments: <src_a> <src_b> <dst_a> <dst_b>")
