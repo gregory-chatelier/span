@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gregory-chatelier/span/interval"
@@ -233,25 +232,17 @@ OPTIONS:
 			os.Exit(1)
 		}
 
-		// In a real streaming implementation for width > 0, we would not read all lines.
-		// This is a simplification for this implementation.
-		lines, err := readAllLines(os.Stdin)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
-			os.Exit(1)
-		}
-		scanner := bufio.NewScanner(strings.NewReader(strings.Join(lines, "\n")))
-
-		err = interval.GenerateSparkline(scanner, os.Stdout, config)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error generating sparkline: %v\n", err)
-			os.Exit(1)
-		}
-		// Print a newline at the end if it's not an animation
-		if config.Width == 0 {
-			fmt.Println()
-		}
-
+		        scanner := bufio.NewScanner(os.Stdin)
+				err = interval.GenerateSparkline(scanner, os.Stdout, config)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error generating sparkline: %v\n", err)
+					os.Exit(1)
+				}
+		
+				// Print a newline at the end if it's not a fixed-width animation
+				if config.Width == 0 {
+					fmt.Println()
+				}
 	case *remapFlag:
 		if len(args) != 4 {
 			fmt.Fprintln(os.Stderr, "Error: -r, --remap requires 4 arguments: <src_a> <src_b> <dst_a> <dst_b>")
