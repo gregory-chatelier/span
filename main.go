@@ -2,15 +2,14 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/gregory-chatelier/span/interval"
+	flag "github.com/spf13/pflag"
 )
 
 // Version will be set during the build process
@@ -50,22 +49,8 @@ func processStream(format string, proc processFunc) {
 	}
 }
 
-// readAllLines reads all lines from stdin and returns them as a slice of strings.
-// This is used for operations that need the full dataset at once.
-func readAllLines(r io.Reader) ([]string, error) {
-	scanner := bufio.NewScanner(r)
-	var lines []string
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines, scanner.Err()
-}
-
-func main() {
-	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-
-	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `NAME:
+func usage() {
+	fmt.Fprintf(os.Stderr, `NAME:
     span - A Unix-style tool for interval manipulation.
 
 SYNOPSIS:
@@ -78,85 +63,34 @@ DESCRIPTION:
     to be a simple, composable tool in the Unix tradition.
 
 OPTIONS:
-    Global Flags:
-      -f, --format string
-            Specifies the printf format for floating-point output (e.g., "%%.3f").
-            To format as an integer, use "%%.0f".
-            Default: "%%g"
-
-      --version
-            Prints version information and exits.
-
-    Operational Flags (only one can be used at a time):
-
-      -r, --remap <src_a> <src_b> <dst_a> <dst_b>
-            Remaps a value from a source interval to a target interval.
-
-      -l, --limit <min> <max>
-            Restricts (clamps) a value to a given interval.
-
-      -E, --encompass
-            Reads a stream of numbers and outputs the minimum and maximum values.
-
-      -n, --divide <steps> <a> <b>
-            Generates a sequence of numbers by dividing an interval.
-
-      -e, --eval <a> <b>
-            Evaluates a parameter 't' (from 0 to 1) within an interval.
-
-      -d, --deval <a> <b>
-            De-evaluates a number to a parameter 't' based on its position.
-
-      -R, --random <count> <a> <b>
-            Generates <count> random numbers within the interval [a, b].
-
-      -S, --snap <steps> <a> <b>
-            Snaps input values to the nearest point on a grid.
-
-      -s, --subintervals <steps> <a> <b>
-            Divides an interval into <steps> equal subintervals.
-      
-      --spark [<min> <max>]
-            Generates a sparkline visualization from a stream of numbers.
-            With 0 args, interval is detected automatically.
-            With 2 args, a fixed interval is used.
-            Options: --width <n>, --color <name>
 `)
-	}
+	flag.PrintDefaults()
+}
 
-	format := fs.String("f", "%g", "(see usage)")
-	versionFlag := fs.Bool("version", false, "(see usage)")
+func main() {
+	flag.Usage = usage
+
+	// --- Global Flags ---
+	format := flag.StringP("format", "f", "%g", "Specifies the printf format for floating-point output (e.g., \"%.3f\").")
+	versionFlag := flag.Bool("version", false, "Prints version information and exits.")
 
 	// --- Operation Flags ---
-	remapFlag := fs.Bool("r", false, "")
-	fs.BoolVar(remapFlag, "remap", false, "")
-	limitFlag := fs.Bool("l", false, "")
-	fs.BoolVar(limitFlag, "limit", false, "")
-	encompassFlag := fs.Bool("E", false, "")
-	fs.BoolVar(encompassFlag, "encompass", false, "")
-	divideFlag := fs.Bool("n", false, "")
-	fs.BoolVar(divideFlag, "divide", false, "")
-	evalFlag := fs.Bool("e", false, "")
-	fs.BoolVar(evalFlag, "eval", false, "")
-	devalFlag := fs.Bool("d", false, "")
-	fs.BoolVar(devalFlag, "deval", false, "")
-	randomFlag := fs.Bool("R", false, "")
-	fs.BoolVar(randomFlag, "random", false, "")
-	snapFlag := fs.Bool("S", false, "")
-	fs.BoolVar(snapFlag, "snap", false, "")
-	subintervalsFlag := fs.Bool("s", false, "")
-	fs.BoolVar(subintervalsFlag, "subintervals", false, "")
-	sparkFlag := fs.Bool("spark", false, "")
+	remapFlag := flag.BoolP("remap", "r", false, "Remaps a value from a source interval to a target interval.")
+	limitFlag := flag.BoolP("limit", "l", false, "Restricts (clamps) a value to a given interval.")
+	encompassFlag := flag.BoolP("encompass", "E", false, "Reads a stream and outputs the min and max values.")
+	divideFlag := flag.BoolP("divide", "n", false, "Generates a sequence by dividing an interval.")
+	evalFlag := flag.BoolP("eval", "e", false, "Evaluates a parameter 't' (0-1) within an interval.")
+	devalFlag := flag.BoolP("deval", "d", false, "De-evaluates a number to a parameter 't' (0-1).")
+	randomFlag := flag.BoolP("random", "R", false, "Generates <count> random numbers in an interval.")
+	snapFlag := flag.BoolP("snap", "S", false, "Snaps input values to the nearest point on a grid.")
+	subintervalsFlag := flag.BoolP("subintervals", "s", false, "Divides an interval into <steps> equal subintervals.")
+	sparkFlag := flag.Bool("spark", false, "Generates a sparkline visualization from a stream of numbers.")
 
 	// --- Spark-specific Flags ---
-	sparkWidth := fs.Int("width", 0, "for --spark: fixed-width sliding window animation")
-	sparkColor := fs.String("color", "", "for --spark: sparkline color (red, green, blue, etc.)")
+	sparkWidth := flag.Int("width", 0, "For --spark: fixed-width sliding window animation")
+	sparkColor := flag.String("color", "", "For --spark: sparkline color (red, green, blue, etc.)")
 
-	// Stop parsing at the first non-flag argument
-	if err := fs.Parse(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
-	}
+	flag.Parse()
 
 	if *versionFlag {
 		fmt.Println(Version)
@@ -164,41 +98,35 @@ OPTIONS:
 	}
 
 	opCount := 0
-	if *remapFlag { opCount++ }
-	if *limitFlag { opCount++ }
-	if *encompassFlag { opCount++ }
-	if *divideFlag { opCount++ }
-	if *evalFlag { opCount++ }
-	if *devalFlag { opCount++ }
-	if *randomFlag { opCount++ }
-	if *snapFlag { opCount++ }
-	if *subintervalsFlag { opCount++ }
-	if *sparkFlag { opCount++ }
+	flag.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "remap", "limit", "encompass", "divide", "eval", "deval", "random", "snap", "subintervals", "spark":
+			opCount++
+		}
+	})
 
+	args := flag.Args()
 
 	if opCount > 1 {
 		fmt.Fprintln(os.Stderr, "Error: Only one operational flag can be used at a time.")
-		fs.Usage()
+		usage()
 		os.Exit(1)
 	}
 
 	if opCount == 0 {
 		stat, _ := os.Stdin.Stat()
-		if len(fs.Args()) == 0 && (stat.Mode()&os.ModeCharDevice) != 0 {
-			fs.Usage()
+		if len(args) == 0 && (stat.Mode()&os.ModeCharDevice) != 0 {
+			usage()
 			os.Exit(0)
 		}
-		// If not showing usage, default to spark if there's pipe data
-		if (stat.Mode() & os.ModeNamedPipe) != 0 {
+		if (stat.Mode()&os.ModeNamedPipe) != 0 {
 			*sparkFlag = true
 		} else {
 			fmt.Fprintln(os.Stderr, "Error: An operational flag is required.")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 	}
-
-	args := fs.Args()
 
 	switch {
 	case *sparkFlag:
@@ -228,25 +156,24 @@ OPTIONS:
 			config.HasMax = true
 		} else if len(args) != 0 {
 			fmt.Fprintln(os.Stderr, "Error: --spark requires 0 or 2 arguments: [<min> <max>]")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 
-		        scanner := bufio.NewScanner(os.Stdin)
-				err = interval.GenerateSparkline(scanner, os.Stdout, config)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error generating sparkline: %v\n", err)
-					os.Exit(1)
-				}
-		
-				// Print a newline at the end if it's not a fixed-width animation
-				if config.Width == 0 {
-					fmt.Println()
-				}
+		scanner := bufio.NewScanner(os.Stdin)
+		err = interval.GenerateSparkline(scanner, os.Stdout, config)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating sparkline: %v\n", err)
+			os.Exit(1)
+		}
+
+		if config.Width == 0 {
+			fmt.Println()
+		}
 	case *remapFlag:
 		if len(args) != 4 {
 			fmt.Fprintln(os.Stderr, "Error: -r, --remap requires 4 arguments: <src_a> <src_b> <dst_a> <dst_b>")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 		srcA, errA := strconv.ParseFloat(args[0], 64)
@@ -264,7 +191,7 @@ OPTIONS:
 	case *limitFlag:
 		if len(args) != 2 {
 			fmt.Fprintln(os.Stderr, "Error: -l, --limit requires 2 arguments: <min> <max>")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 		min, err := strconv.ParseFloat(args[0], 64)
@@ -284,7 +211,7 @@ OPTIONS:
 	case *encompassFlag:
 		if len(args) != 0 {
 			fmt.Fprintln(os.Stderr, "Error: -E, --encompass takes no arguments.")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 
@@ -299,7 +226,7 @@ OPTIONS:
 	case *divideFlag:
 		if len(args) != 3 {
 			fmt.Fprintln(os.Stderr, "Error: -n, --divide requires 3 arguments: <steps> <a> <b>")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 		steps, errS := strconv.Atoi(args[0])
@@ -323,7 +250,7 @@ OPTIONS:
 	case *evalFlag:
 		if len(args) != 2 {
 			fmt.Fprintln(os.Stderr, "Error: -e, --eval requires 2 arguments: <a> <b>")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 		a, errA := strconv.ParseFloat(args[0], 64)
@@ -338,7 +265,7 @@ OPTIONS:
 	case *devalFlag:
 		if len(args) != 2 {
 			fmt.Fprintln(os.Stderr, "Error: -d, --deval requires 2 arguments: <a> <b>")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 		a, errA := strconv.ParseFloat(args[0], 64)
@@ -353,7 +280,7 @@ OPTIONS:
 	case *randomFlag:
 		if len(args) != 3 {
 			fmt.Fprintln(os.Stderr, "Error: -R, --random requires 3 arguments: <count> <a> <b>")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 		count, errC := strconv.Atoi(args[0])
@@ -380,7 +307,7 @@ OPTIONS:
 	case *snapFlag:
 		if len(args) != 3 {
 			fmt.Fprintln(os.Stderr, "Error: -S, --snap requires 3 arguments: <steps> <a> <b>")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 		steps, errS := strconv.Atoi(args[0])
@@ -396,7 +323,7 @@ OPTIONS:
 	case *subintervalsFlag:
 		if len(args) != 3 {
 			fmt.Fprintln(os.Stderr, "Error: -s, --subintervals requires 3 arguments: <steps> <a> <b>")
-			fs.Usage()
+			usage()
 			os.Exit(1)
 		}
 		steps, errS := strconv.Atoi(args[0])
@@ -413,8 +340,6 @@ OPTIONS:
 			os.Exit(1)
 		}
 
-		// Subintervals outputs two values per line, separated by a space.
-		// The format flag applies to each number.
 		outputFormat := *format + " " + *format + "\n"
 		for _, res := range results {
 			fmt.Printf(outputFormat, res[0], res[1])
