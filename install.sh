@@ -45,9 +45,9 @@ get_latest_version() {
     
     # Parse the response
     if command -v jq >/dev/null 2>&1; then
-        version=$(echo "$api_response" | jq -r .tag_name 2>/dev/null)
+        version=$(printf "%s" "$api_response" | jq -r .tag_name 2>/dev/null)
     else
-        version=$(echo "$api_response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' 2>/dev/null | head -1)
+        version=$(printf "%s" "$api_response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' 2>/dev/null | head -1)
     fi
     
     # Validate the version
