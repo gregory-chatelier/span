@@ -89,7 +89,7 @@ sudo curl -sSfL https://raw.githubusercontent.com/gregory-chatelier/span/main/in
 You can specify a custom installation directory using the `INSTALL_DIR` environment variable:
 
 ```bash
-INSTALL_DIR=$HOME/my-tools curl -sSfL https://raw.githubusercontent.com/gregory-chatelier/span/main/install.sh | sh
+curl -sSfL https://raw.githubusercontent.com/gregory-chatelier/span/main/install.sh | INSTALL_DIR=$HOME/bin sh
 ```
 
 ### From Source
