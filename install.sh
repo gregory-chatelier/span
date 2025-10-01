@@ -1,8 +1,13 @@
 #!/bin/sh
 
 # This script downloads and installs the latest version of the 'span' tool.
-# It is designed to be run via curl:
+#
+# Usage:
 #   curl -sSfL https://raw.githubusercontent.com/gregory-chatelier/span/main/install.sh | sh
+#
+# To specify a custom installation directory, set the INSTALL_DIR environment variable
+# for the 'sh' command:
+#   curl -sSfL https://raw.githubusercontent.com/gregory-chatelier/span/main/install.sh | INSTALL_DIR=~/my-bin sh
 
 set -e
 
@@ -93,7 +98,7 @@ get_os_arch_install_dir() {
                 install_dir="$HOME/bin"
             fi
             ;;
-        *) 
+        *)
             echo_err "Unsupported OS: $os_name" 
             ;; 
     esac
@@ -106,7 +111,7 @@ get_os_arch_install_dir() {
         aarch64 | arm64) 
             arch_name="arm64" 
             ;; 
-        *) 
+        *)
             echo_err "Unsupported architecture: $arch_name" 
             ;; 
     esac
@@ -138,8 +143,16 @@ PLATFORM_INFO=$(get_os_arch_install_dir)
 PARSED_INFO=$(parse_platform_info "$PLATFORM_INFO")
 
 PLATFORM=$(echo "$PARSED_INFO" | cut -d'|' -f1)
-INSTALL_DIR=$(echo "$PARSED_INFO" | cut -d'|' -f2)
+DEFAULT_INSTALL_DIR=$(echo "$PARSED_INFO" | cut -d'|' -f2)
 IS_WINDOWS_ENV=$(echo "$PARSED_INFO" | cut -d'|' -f3)
+
+# If INSTALL_DIR is set, use it. Otherwise, use the default.
+# Use eval to handle tilde expansion, e.g., ~/
+if [ -n "$INSTALL_DIR" ]; then
+    eval INSTALL_DIR="$INSTALL_DIR"
+else
+    INSTALL_DIR="$DEFAULT_INSTALL_DIR"
+fi
 
 echo "Detected platform: $PLATFORM"
 echo "Install directory: $INSTALL_DIR"
